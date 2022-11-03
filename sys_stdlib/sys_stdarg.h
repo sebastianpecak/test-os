@@ -10,13 +10,13 @@ typedef uint8_t * va_list;
     (_va_list) = ((va_list)&(_last_explicit_arg) + sizeof(_last_explicit_arg))
 
 #define va_arg(_va_list, _type) \
-    *(_type*)_va_list; \
-    _va_list += sizeof(_type)
+    *(_type*)(_va_list); \
+    (_va_list) += (sizeof(_type) < sizeof(uint32_t) ? sizeof(uint32_t) : sizeof(_type))
 
 #define va_copy(_va_list_dst, _va_list_src) \
     (_va_list_dst) = (_va_list_src)
 
 #define va_end(_va_list) \
-    _va_list = NULL
+    (_va_list) = NULL
 
 #endif // SYS_STDARG_H

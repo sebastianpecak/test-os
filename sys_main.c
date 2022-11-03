@@ -4,26 +4,60 @@
 #include "sys_stdlib.h"
 #include "sys_stddef.h"
 #include "sys_sanitizer.h"
-#include "sys_tools.h"
 #include "sys_stdio.h"
+#include "sys_txt_terminal.h"
+#include "sys_idt.h"
+#include "sys_dgt.h"
+#include "sys_boot_functions.h"
+#include "sys_dev_kbrd.h"
+#include "sys_io.h"
+#include "sys_dev_ps2.h"
 
 SYS_COMPILE_TIME_ASSERT(sizeof(void*) == sizeof(uint32_t), pointers_not_32bit_wide);
 
 void print_boot_info(const struct MultibootBootInfo_s* bootInfo);
 
-void sys_main(uint32_t magic, uint32_t boot_info_addr)
+static void _on_hlt_loop()
 {
+    sys_printf("hlt loop...\n");
+}
+
+static void sys_init_all_devs()
+{
+    //sys_gdt_init();
+    //sys_gdt_install();
+
+    sys_idt_init();
+    sys_idt_install();
+
+    sys_dev_ps2_init();
+    sys_dev_kbrd_init();
+
+    //sys_idt_enable();
+}
+
+static void sys_test_all()
+{
+    sys_dev_ps2_test();
+    sys_dev_kbrd_test();
+}
+
+void sys_main(uint32_t magic, const struct MultibootBootInfo_s* boot_info)
+{
+    // Framebuffer text terminal.
+    //struct TxtTerminal_s phy_term;
     // To be able to print to screen.
     terminal_initialize();
-
-    const struct MultibootBootInfo_s* boot_info = TYPE_CAST(struct MultibootBootInfo_s*, boot_info_addr);
 
     SYS_ASSERT(sizeof(void*) == sizeof(uint32_t));
     SYS_ASSERT_NOT_NULL(boot_info);
     SYS_ASSERT(magic == MULTIBOOT_BOOTLOADER_MAGIC);
     SYS_ASSERT(sys_multiboot_is_valid(boot_info) == BOOL_TRUE);
 
-    print_boot_info(boot_info);
+    sys_init_all_devs();
+    sys_test_all();
+
+    HLT_LOOP_WITH_CALL(_on_hlt_loop);
 }
 
 void print_boot_info_mem(const struct MultibootBootInfo_Mem_s* mem)
@@ -80,11 +114,11 @@ void print_boot_info_mmap(const struct MultibootBootInfo_Mmap_s* mmap)
     {
         return;
     }
-    uint8_t* head_byte = mmap->head;
+    uint8_t* head_byte = TYPE_CAST(uint8_t*, mmap->head);
     size_t to_read = mmap->length;
     for (;to_read > 0;)
     {
-        struct MultibootBootInfo_MmapEntry_s* current = head_byte;
+        struct MultibootBootInfo_MmapEntry_s* current = TYPE_CAST(struct MultibootBootInfo_MmapEntry_s*, head_byte);
         sys_printf("[%u] size %u, base_addr %#x, length %u, type %u\n",
             counter++, current->size, current->base_addr, current->length, current->type);
         // Move to next element (size can be different than 20B).
@@ -103,11 +137,11 @@ void print_boot_info_drives(const struct MultibootBootInfo_Drives_s* drives)
     {
         return;
     }
-    uint8_t* head_byte = drives->drives;
+    uint8_t* head_byte = TYPE_CAST(uint8_t*, drives->drives);
     size_t to_read = drives->length;
     for (;to_read > 0;)
     {
-        struct MultibootBootInfo_DriveEntry_s* current = head_byte;
+        struct MultibootBootInfo_DriveEntry_s* current = TYPE_CAST(struct MultibootBootInfo_DriveEntry_s*, head_byte);
         sys_printf("[%u] size %u, number %u, mode ",
             counter++, current->size, current->number);
         if (current->mode == MULTIBOOT_BOOT_INFO_DRIVE_ENTRY_MODE_CHS)
@@ -140,13 +174,10 @@ void print_boot_info_vbe(const struct MultibootBootInfo_Vbe_s* vbe)
     sys_printf("interface_len: %#x\n", vbe->interface_len);
 }
 
-// TODO: add %ll support for uint64_t.
-
 void print_boot_info_framebuffer(const struct MultibootBootInfo_FrameBuffer_s* framebuffer)
 {
     sys_printf("--- section FRAMEBUFFER ---\n");
-    //sys_printf("addr : %#llx\n", framebuffer->addr);
-    sys_printf("addr  : %#x\n", (uint32_t)framebuffer->addr);
+    sys_printf("addr  : %#x\n", TYPE_CAST(uint32_t, framebuffer->addr));
     sys_printf("pitch : %u\n", framebuffer->pitch);
     sys_printf("width : %u\n", framebuffer->width);
     sys_printf("height: %u\n", framebuffer->height);
@@ -157,7 +188,7 @@ void print_boot_info_framebuffer(const struct MultibootBootInfo_FrameBuffer_s* f
 void print_boot_info(const struct MultibootBootInfo_s* boot_info)
 {
     sys_printf("MULTIBOOT INFO:\n");
-    sys_printf("boot-info-addr: %#x\n", ADDRESS_TO_UINT32(boot_info));
+    sys_printf("boot-info-addr: %#x\n", boot_info);
     sys_printf("flags         : %#x\n", boot_info->flags);
     if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_MEM)
     {
@@ -167,26 +198,26 @@ void print_boot_info(const struct MultibootBootInfo_s* boot_info)
     {
         print_boot_info_boot_dev(&boot_info->boot_device);
     }
-    // if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_CMDLINE)
-    // {
-    //     print_boot_info_cmdline(&boot_info->cmdline);
-    // }
+    if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_CMDLINE)
+    {
+        print_boot_info_cmdline(&boot_info->cmdline);
+    }
     if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_MODS)
     {
         print_boot_info_mods(&boot_info->mods);
     }
-    // if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_SYMBOL_TABLE)
-    // {
-    //     print_boot_info_symbol_table(&boot_info->syms.symbol_table);
-    // }
-    // if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_ELF_HEADER)
-    // {
-    //     print_boot_info_elf_header(&boot_info->syms.elf_header);
-    // }
-    // if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_MMAP)
-    // {
-    //     print_boot_info_mmap(&boot_info->mmap);
-    // }
+    if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_SYMBOL_TABLE)
+    {
+        print_boot_info_symbol_table(&boot_info->syms.symbol_table);
+    }
+    if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_ELF_HEADER)
+    {
+        print_boot_info_elf_header(&boot_info->syms.elf_header);
+    }
+    if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_MMAP)
+    {
+        print_boot_info_mmap(&boot_info->mmap);
+    }
     if (boot_info->flags & MULTIBOOT_BOOTINFO_FLAG_HAS_DRIVES)
     {
         print_boot_info_drives(&boot_info->drives);

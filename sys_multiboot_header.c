@@ -1,7 +1,9 @@
 #include "sys_multiboot.h"
-#include "sys_tools.h"
+#include "sys_entry_point.h"
 
 #warning "COMPILER OPTION -O0 IS REQUIRED!"
+
+#define SYS_IMAGE_LOAD_ADDRESS 0x100000 // 1MB
 
 /**
  * @brief This file contains data for Multiboot-compliant bootloaders.
@@ -25,10 +27,10 @@ static const struct MultibootHeader_s _multibootHeader = {
     ,
     .address_fields = {
         .header_addr   = ADDRESS_TO_UINT32(_multibootHeader),
-        .load_addr     = 0x100000,
+        .load_addr     = SYS_IMAGE_LOAD_ADDRESS,
         .load_end_addr = 0,
         .bss_end_addr  = 0,
-        .entry_addr    = ADDRESS_TO_UINT32(entry_point_from_bootloader)
+        .entry_addr    = ADDRESS_TO_UINT32(sys_entry_point)
     }
 #endif // TESTOS_FLAG_MULTIBOOT_HEADER_HAS_ADDRESS_FIELDS
 };

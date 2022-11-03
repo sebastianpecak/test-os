@@ -38,8 +38,6 @@ enum MultibootHeaderFlags_e
     MULTIBOOT_HEADER_FLAG_ADDRESS_FIELDS  = (1 << 16) // This flag indicates the use of the address fields in the header.
 };
 
-#pragma pack(1)
-
 struct MultibootHeaderAddressFields_s
 {
     uint32_t header_addr;   // Address corresponding to the beginning of the Multiboot header.
@@ -116,11 +114,7 @@ struct MultibootBootInfo_BootDevice_s
 #define MultibootBootInfo_CmdLine_s_EXPECTED_SIZE 4
 struct MultibootBootInfo_CmdLine_s
 {
-    union
-    {
-        uint32_t address;
-        const char* cstr;
-    };
+    const char* cstr;
 };
 
 #define MultibootBootInfo_Module_s_EXPECTED_SIZE 16
@@ -128,11 +122,7 @@ struct MultibootBootInfo_Module_s
 {
     uint32_t start;
     uint32_t end;
-    union
-    {
-        uint32_t string;
-        const char* string_cstr;
-    };
+    const char* cstr;
     uint32_t reserved;
 };
 
@@ -140,11 +130,7 @@ struct MultibootBootInfo_Module_s
 struct MultibootBootInfo_Mods_s
 {
     uint32_t count;
-    union
-    {
-        uint32_t addr;
-        struct MultibootBootInfo_Module_s* head;
-    };
+    struct MultibootBootInfo_Module_s* head;
 };
 
 #define MultibootBootInfo_SymbolTable_s_EXPECTED_SIZE 16
@@ -197,11 +183,7 @@ struct MultibootBootInfo_MmapEntry_s
 struct MultibootBootInfo_Mmap_s
 {
     uint32_t length;
-    union
-    {
-        uint32_t addr;
-        struct MultibootBootInfo_MmapEntry_s* head;
-    };
+    struct MultibootBootInfo_MmapEntry_s* head;
 };
 
 #define MultibootBootInfo_DrivePort_s_EXPECTED_SIZE 2
@@ -221,15 +203,11 @@ enum MultibootBootInfo_DriveEntryMode_e
 struct MultibootBootInfo_DriveEntry_s
 {
     uint32_t size;
-    union
-    {
-        uint8_t  _placeholder[6];
-        uint8_t  number;
-        uint8_t  mode;
-        uint16_t cylinders;
-        uint8_t  heads;
-        uint8_t  sectors;
-    };
+    uint8_t  number;
+    uint8_t  mode;
+    uint16_t cylinders;
+    uint8_t  heads;
+    uint8_t  sectors;
     struct MultibootBootInfo_DrivePort_s ports[1];
 };
 
@@ -237,21 +215,13 @@ struct MultibootBootInfo_DriveEntry_s
 struct MultibootBootInfo_Drives_s
 {
     uint32_t length;
-    union
-    {
-        uint32_t addr;
-        struct MultibootBootInfo_DriveEntry_s* drives;
-    };
+    struct MultibootBootInfo_DriveEntry_s* drives;
 };
 
 #define MultibootBootInfo_BootloaderName_s_EXPECTED_SIZE 4
 struct MultibootBootInfo_BootloaderName_s
 {
-    union
-    {
-        uint32_t addr;
-        const char* cstr;
-    };
+    const char* cstr;
 };
 
 #define MultibootBootInfo_ApmTable_s_EXPECTED_SIZE 20
@@ -284,50 +254,44 @@ enum MultibootBootInfo_FrameBufferType_e
     MULTIBOOT_BOOT_INFO_FRAMEBUFFER_TYPE_INDEXED_COLOR = 0,
     MULTIBOOT_BOOT_INFO_FRAMEBUFFER_TYPE_RBG_COLOR     = 1,
     MULTIBOOT_BOOT_INFO_FRAMEBUFFER_TYPE_EGA_TEXT_MODE = 2,
-    MULTIBOOT_BOOT_INFO_FRAMEBUFFER_TYPE_CGA_TEXT_MODE = 16,
     MULTIBOOT_BOOT_INFO_FRAMEBUFFER_TYPE_UNKNOWN       = 0xFF
 };
 
 #define MultibootBootInfo_FrameBufferPallete_s_EXPECTED_SIZE 3
 struct MultibootBootInfo_FrameBufferPallete_s
 {
-    union
-    {
-        uint8_t _placeholder[3];
-        uint8_t red_value;
-        uint8_t green_value;
-        uint8_t blue_value;
-    };
+    uint8_t red_value;
+    uint8_t green_value;
+    uint8_t blue_value;
 };
 
 #define MultibootBootInfo_FrameBufferIndexedColor_s_EXPECTED_SIZE 6
-//#pragma pack(1)
+#pragma pack(1)
 struct MultibootBootInfo_FrameBufferIndexedColor_s
 {
-    union
-    {
-        uint32_t palette_addr;
-        struct MultibootBootInfo_FrameBufferPallete_s* pallete;
-    };
-    uint16_t palette_num_colors;
+    struct MultibootBootInfo_FrameBufferPallete_s* pallete;
+    uint16_t num_colors;
 };
-//#pragma pack()
+#pragma pack()
 
 #define MultibootBootInfo_FrameBufferRgbColor_s_EXPECTED_SIZE 6
-//#pragma pack(1)
+#pragma pack(1)
 struct MultibootBootInfo_FrameBufferRgbColor_s
 {
-    uint32_t palette_addr;
-    uint16_t palette_num_colors;
+    uint8_t red_field_position;
+    uint8_t red_mask_size;
+    uint8_t green_field_position;
+    uint8_t green_mask_size;
+    uint8_t blue_field_position;
+    uint8_t blue_mask_size;
 };
-//#pragma pack()
+#pragma pack()
 
 #define MultibootBootInfo_FrameBufferColor_s_EXPECTED_SIZE 6
 struct MultibootBootInfo_FrameBufferColor_s
 {
     union
     {
-        uint8_t _placeholder[6];
         struct MultibootBootInfo_FrameBufferIndexedColor_s indexed;
         struct MultibootBootInfo_FrameBufferRgbColor_s rgb;
     };
@@ -340,12 +304,8 @@ struct MultibootBootInfo_FrameBuffer_s
     uint32_t pitch;
     uint32_t width;
     uint32_t height;
-    union
-    {
-        uint16_t _placeholder;
-        uint8_t bpp;
-        uint8_t type;
-    };
+    uint8_t bpp;
+    uint8_t type;
     struct MultibootBootInfo_FrameBufferColor_s color_info;
 };
 
@@ -381,7 +341,6 @@ struct MultibootBootInfo_s
     struct MultibootBootInfo_Vbe_s            vbe;          // MULTIBOOT_BOOTINFO_FLAG_HAS_VBE
     struct MultibootBootInfo_FrameBuffer_s    framebuffer;  // MULTIBOOT_BOOTINFO_FLAG_HAS_FRAMEBUFFER
 };
-#pragma pack()
 
 /**
  * @brief This function validates MultibootBootInfo_s structure contents received from bootloader.

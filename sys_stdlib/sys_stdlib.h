@@ -19,6 +19,7 @@ enum NumberBase_e
     BASE_HEX     = 16
 };
 
-int uint32_to_string(uint32_t number, uint8_t base, char* output, size_t output_size);
+int uint_to_string(uint32_t number, uint8_t base, char* output, size_t output_size);
+//int uint_to_string(uint64_t number, uint8_t base, char* output, size_t output_size);
 
 #endif // SYS_STDLIB_H

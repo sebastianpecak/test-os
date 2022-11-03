@@ -2,6 +2,7 @@
 #define SYS_SANITIZER_H
 
 #include "sys_stddef.h"
+//#include "terminal.h"
 
 // #define SYS_FLAG_ENABLE_SANITIZER
 
@@ -22,9 +23,6 @@
     typedef char SYS_GLUE(compile_time_assert_, _msg) [(_expr) ? (+1) : (-1)]
 
 // #else
-
-// #define SYS_ASSERT_NOT_NULL(_exp, _return) \
-//     NOP
 
 // #endif // SYS_FLAG_ENABLE_SANITIZER
 

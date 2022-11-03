@@ -1,5 +1,7 @@
 AS = $(TARGET)-as
 CC = $(TARGET)-gcc
+MAKE = `which make`
+
 FORCE_INCLUDE = sys_config_flags.h sys_compiler_guard.h
 # Sources for which there is no optimization enabled, i.e. -O0.
 NO_OPT_SRC = sys_entry_point.c
@@ -12,7 +14,10 @@ SOURCES = $(shell ls *.c)
 OBJECTS = $(subst .c,.o,$(SOURCES))
 #DEFINES = -DASM_DEFINED_ENTRY_POINT
 LINKER_SCRIPT_FILE = kernel_linker_script.ld
-CFLAGS = -c -std=gnu99 -ffreestanding -Wall -Wextra -O0
+# -mgeneral-regs-only  ONLY FOR INTERRUPTS.
+CFLAGS = -c -std=gnu99 -ffreestanding -Wall -Wextra -g # -mgeneral-regs-only # -O0 
+INCLUDE_PATHS = sys_stdlib
+LINK_LIBS = sys_stdlib/sys_stdlib.a
 
 # Build bootable kernel ISO as default target.
 default: $(KERNEL_OUTPUT_NAME).iso
@@ -27,17 +32,26 @@ $(KERNEL_OUTPUT_NAME).iso: $(KERNEL_OUTPUT_NAME).bin
 	@rm -rf $(TMP_ISO_DIR)
 
 # Link kernel binary.
-$(KERNEL_OUTPUT_NAME).bin: $(OBJECTS)
+$(KERNEL_OUTPUT_NAME).bin: $(OBJECTS) $(LINK_LIBS)
 	$(CC) -T $(LINKER_SCRIPT_FILE) -o $@ -ffreestanding -O2 -nostdlib -lgcc $^
 	@if grub-file --is-x86-multiboot $@; then echo MULTIBOOT VERIFICATION: OK; else echo MULTIBOOT VERIFICATION: NOK; exit; fi
 
 # Compile source files.
-%.o : %.c
-	$(CC) $< -o $@ $(CFLAGS) $(addprefix -include, $(FORCE_INCLUDE))
+%.o: %.c
+	$(CC) $< -o $@ $(CFLAGS) $(addprefix -include, $(FORCE_INCLUDE)) $(addprefix -I, $(INCLUDE_PATHS))
+
+# Build dependencies.
+%.a:
+	@make -C $(dir $@)
 
 # Assemble preprocessed asm.
 # entry_point.o: entry_point.s
 # 	$(AS) $< -o $@
+
+rebuild: cleanall default
+
+cleanall: clean
+	$(foreach lib, $(LINK_LIBS), $(MAKE) -C $(dir $(lib)) clean)
 
 clean:
 	@rm -f *.o
